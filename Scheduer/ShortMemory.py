@@ -166,10 +166,12 @@ class ShortMemory:
         start_time = datetime.strptime(_decompose_entry["start_time"], "%m-%d-%Y %H:%M")
         end_time = datetime.strptime(_decompose_entry["end_time"], "%m-%d-%Y %H:%M")
 
-        if start_time <= self.date_time_dt <= end_time:
+        if start_time <= self.date_time_dt < end_time:
             return _decompose_entry['activity']
         else:
-            self._cur_decompose_index += 1
+            if not self._cur_decompose_index == len(self._cur_decompose) - 1:
+                self._cur_decompose_index += 1
+            
             return self._cur_decompose[self._cur_decompose_index]['activity']
         
 

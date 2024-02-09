@@ -4,8 +4,8 @@ Author: Xucheng(Timber) Zhang
 Date: 2024-02-06
 """ 
 
-from pydantic import BaseModel, Field
-
+# from pydantic import BaseModel, Field
+from pydantic.v1 import BaseModel, Field
 
 class ScheduleEntry(BaseModel):
     start_time: str = Field(description='Start time of an scheduel event in the format of MM-DD-YYYY HH:MM')
@@ -21,6 +21,7 @@ class ScheduleEntry(BaseModel):
             "end_time" : self.end_time,
             "event" : self.event
         }
+
 
 class Schedule(BaseModel):
     schedule: list[ScheduleEntry]
@@ -50,8 +51,10 @@ class Decompose(BaseModel):
     def dump_list(self):
         return [i.dump_dict() for i in self.decompose]
 
+
 class ActivitySet(BaseModel):
     activity: list[str] = Field(description='A list of activities (a present continuous verb phrase)')
+
 
 def label_list_to_str(labels:list):
     res = ""

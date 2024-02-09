@@ -7,9 +7,7 @@ Date: 2024-02-04
 import sys
 import os
 import json
-import pathlib
 from datetime import datetime, timedelta
-
 
 from langchain.output_parsers import PydanticOutputParser
 from langchain.chains import LLMChain
@@ -152,7 +150,8 @@ class Scheduer:
                 })
             for event_entry in entry["schedule"]:
                 schedule_examples[idx]["schedule"].append(
-                        ScheduleEntry.model_validate(event_entry).model_dump_json().replace("{", "{{").replace("}", "}}")
+                        # ScheduleEntry.model_validate(event_entry).model_dump_json().replace("{", "{{").replace("}", "}}")
+                        json.dumps(event_entry).replace("{", "{{").replace("}", "}}")
                     )
         example_prompt = PromptTemplate(
             input_variables=["description", "start_time", "schedule"],
@@ -246,7 +245,8 @@ class Scheduer:
                 })
             for event_entry in entry["decompose"]:
                 decompose_examples[idx]["decompose"].append(
-                        DecomposeEntry.model_validate(event_entry).model_dump_json().replace("{", "{{").replace("}", "}}")
+                        # DecomposeEntry.model_validate(event_entry).model_dump_json().replace("{", "{{").replace("}", "}}")
+                        json.dumps(event_entry).replace("{", "{{").replace("}", "}}")
                     )
         example_prompt = PromptTemplate(
             input_variables=["event", "cur_activity", "options", "decompose"],
