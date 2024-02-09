@@ -127,6 +127,7 @@ class ShortMemory:
     
     @cur_decompose.setter
     def cur_decompose(self, decompose):
+        print(decompose)
         self._cur_decompose = decompose
         self._cur_decompose_index = 0
 
@@ -162,8 +163,8 @@ class ShortMemory:
     @property
     def planning_activity(self):
         _decompose_entry = self._cur_decompose[self._cur_decompose_index]
-        start_time = datetime.strptime(_decompose_entry["start_time"])
-        end_time = datetime.strptime(_decompose_entry["end_time"])
+        start_time = datetime.strptime(_decompose_entry["start_time"], "%m-%d-%Y %H:%M")
+        end_time = datetime.strptime(_decompose_entry["end_time"], "%m-%d-%Y %H:%M")
 
         if start_time <= self.date_time_dt <= end_time:
             return _decompose_entry['activity']

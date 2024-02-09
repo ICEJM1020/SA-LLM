@@ -133,7 +133,7 @@ def fetch_user_folder(user_index):
 
 def run_mmasch(
         schedule_type: str = "label",
-        user_index: str or list[int] or int = "all",
+        user_index: str | list[int] | int = "all",
         result_folder: str = "output",
         description_type: str = "few-shots",
         description_length: str = "long"

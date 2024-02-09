@@ -36,7 +36,12 @@ class DecomposeEntry(BaseModel):
     end_time: str = Field(description='After the duration time, the end time of this activity in the format of MM-DD-YYYY HH:MM')
 
     def dump_dict(self):
-        return {self.activity : self.end_time}
+        res = {
+            'activity' : self.activity,
+            'start_time' : self.start_time, 
+            'end_time' : self.end_time
+        }
+        return res
 
 
 class Decompose(BaseModel):
@@ -46,7 +51,7 @@ class Decompose(BaseModel):
         return [i.dump_dict() for i in self.decompose]
 
 class ActivitySet(BaseModel):
-    activity: list[str] = Field(description='A list of activities (a present continuous verb word or phrase)')
+    activity: list[str] = Field(description='A list of activities (a present continuous verb phrase)')
 
 def label_list_to_str(labels:list):
     res = ""

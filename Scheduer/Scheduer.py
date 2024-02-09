@@ -80,10 +80,8 @@ class Scheduer:
         self._output_cache_length = 1000
         self._out_folder = out_folder
         self._out_activity_file = os.path.join(out_folder, "activity.csv")
-        if os.path.exists(self._out_activity_file):
-            pathlib.Path.unlink(self._out_activity_file)
-            with open(self._out_activity_file, "w") as f:
-                f.write("time, activity, event, feature_summary\n")
+        with open(self._out_activity_file, "w") as f:
+            f.write("time, activity, event, feature_summary\n")
         self._retry_times = retry_times
 
 
@@ -201,7 +199,7 @@ class Scheduer:
         ## decompose the first event
         self.short_memory.cur_decompose = self._decompose_task().dump_list()
         while True:
-            print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event_str}-{self.short_memory.cur_activity} ")
+            print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event['event']}-{self.short_memory.cur_activity} ")
             self._recognize_activity()
 
             self.save_activity()
@@ -311,14 +309,20 @@ class Scheduer:
         
         request = chat_prompt.format_prompt(
             event = self.short_memory.cur_event_str,
+            example = self._utils_prompts["generate_activities_list_example"],
             catalogues = label_list_to_str(self.labels),
             format_instructions = activity_list_parser.get_format_instructions()
         ).to_messages()
 
-        model = ChatOpenAI(model_name='gpt-3.5-turbo',temperature=0.9)
-        results = model(request)
+        model = ChatOpenAI(
+                api_key=CONFIG["openai"]["api_key"],
+                organization=CONFIG["openai"]["organization"],
+                model_name='gpt-3.5-turbo',
+                temperature=1.2
+            )
+        results = model.invoke(request)
 
-        return activity_list_parser.parse(results.content)
+        return activity_list_parser.parse(results.content).activity
 
 
     def _recognize_activity(self):
@@ -343,4 +347,4 @@ class Scheduer:
         if len(self._output_cache) >= self._output_cache_length:
             with open(self._out_activity_file, "a+") as f:
                 f.write(self._output_cache)
-            self._output_cache
+            self._output_cache = ""
