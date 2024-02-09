@@ -17,14 +17,15 @@ class LongMemory:
 
     def __init__(self, description, user_folder):
         self._user_folder = user_folder
-        self._memory_tree = {
-            "description" : description,
-        }
-
+        self._description = description
 
     @property
     def description(self):
-        return self._memory_tree["description"]
+        return self._description
+    
+    @property
+    def name(self):
+        return self._description
 
 
 

@@ -17,15 +17,18 @@ from langchain_openai import ChatOpenAI
 from config import CONFIG
 from Scheduer import Scheduer
 
-
-with open("prompt_description.json", 'r') as f:
-    prompts = json.load(f)['MMASH']
+try:
+    with open("Prompts/prompt_description.json", 'r') as f:
+        prompts = json.load(f)['MMASH']
+except:
+    raise Exception("No description prompts file")
 
 def fetch_info(user_folder):
     res = {}
     info = pd.read_csv(os.path.join(user_folder, CONFIG["MMASH_files"]["info"]), index_col=0)
     res['gender'] = "Male" if info["Gender"][0].upper() == "M" else "F"
     res['age'] = info["Age"][0]
+    if res['age'] == 0: res['age'] = 27 # deal with 0 age, 27 years old is the avg age in the dataset
     res['weight'] = info["Weight"][0]
     res['height'] = info["Height"][0]
 
@@ -52,6 +55,7 @@ def generate_description_zero_shot(info:dict, length:int):
     chain = LLMChain(
             llm=ChatOpenAI(
                     api_key=CONFIG["openai"]["api_key"],
+                    organization=CONFIG["openai"]["organization"],
                     model_name='gpt-3.5-turbo',
                     temperature=0.9
                 ),
@@ -65,7 +69,7 @@ def generate_description_zero_shot(info:dict, length:int):
 
 def generate_description_few_shots(info:dict, length:str):
     example_prompt = PromptTemplate(
-    input_variables=['description'],
+        input_variables=['description'],
         template=prompts["example_prompt"]
     )
 
@@ -86,6 +90,7 @@ def generate_description_few_shots(info:dict, length:str):
     chain = LLMChain(
             llm=ChatOpenAI(
                 api_key=CONFIG["openai"]["api_key"],
+                organization=CONFIG["openai"]["organization"],
                 model_name='gpt-3.5-turbo',
                 temperature=0.9
             ),
@@ -97,13 +102,43 @@ def generate_description_few_shots(info:dict, length:str):
     return description["text"]
 
 
+def fetch_user_folder(user_index):
+    users_folder = []
+    users = []
+    if user_index == "all":
+        for _path, dirs, _ in os.walk(CONFIG['MMASH']):
+            if dirs:
+                users = dirs
+            else:
+                users_folder.append(_path)
+    elif isinstance(user_index, list):
+        for user_id in user_index:
+            _id = f"user_{user_id}"
+            _path = os.path.join(CONFIG['MMASH'], _id)
+            if os.path.exists(_path):
+                users.append(f"user_{user_id}")
+                users_folder.append(_path)
+            else:
+                print(f"Wrong user index {user_id}")
+    elif isinstance(user_index, int):
+        _id = f"user_{user_index}"
+        _path = os.path.join(CONFIG['MMASH'], _id)
+        if os.path.exists(_path):
+            users.append(f"user_{user_index}")
+            users_folder.append(_path)
+        else:
+            raise Exception(f"Wrong user index {user_id}")
+    
+    return users, users_folder
+
 def run_mmasch(
+        schedule_type: str = "label",
+        user_index: str or list[int] or int = "all",
         result_folder: str = "output",
         description_type: str = "few-shots",
         description_length: str = "long"
     ):
-    users_folder = []
-    users = None
+    
 
     out_folder = os.path.join(result_folder, "mmash")
     if not os.path.exists(out_folder):
@@ -112,12 +147,8 @@ def run_mmasch(
     ##
     ## separate activity and event ?
     ##
-
-    for path, dirs, _ in os.walk(CONFIG['MMASH']):
-        if dirs:
-            users = dirs
-        else:
-            users_folder.append(path)
+    
+    users, users_folder = fetch_user_folder(user_index=user_index)
 
     for user, user_folder in zip(users, users_folder):
         info = fetch_info(user_folder=user_folder)
@@ -138,12 +169,29 @@ def run_mmasch(
             description=description,
             user_folder=user_folder,
             out_folder=user_out_folder,
-            datatype="mmash"
+            schedule_type=schedule_type,
+            datatype="mmash",
+            labels = list(CONFIG["MMASH_label"].values()),
         )
 
-        ##
+        ############
         ## start schedule
-        ##
+        ############
+        agent.plan(
+            days=1,
+            start_time="07:00",
+            end_time="10:00"
+        )
 
         agent.save_info()
         
+
+
+if __name__ == "__main__":
+    run_mmasch(
+        schedule_type = "label",
+        user_index = 2,
+        result_folder = "output",
+        description_type = "few-shots",
+        description_length = "long"
+    )

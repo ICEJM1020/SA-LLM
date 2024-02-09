@@ -1,0 +1,3 @@
+{
+    "generate_activities_list" : "Given this schedule event {event}, now you need to decompose this event step by step. Here are some vague catalogs for the potential activities. List 50 activities based on these catalogues that could help you decompose this event. The activity should be a verb word or phrase.\n{catalogues}\n{format_instructions}"
+}

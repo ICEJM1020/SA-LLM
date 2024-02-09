@@ -18,4 +18,10 @@ if __name__ == "__main__":
         os.mkdir(os.path.join(CONFIG['base_dir'], "output"))
 
     
-    run_mmasch(os.path.join(CONFIG['base_dir'], "output"))
+    run_mmasch(
+        schedule_type = "label",
+        user_index = 2,
+        result_folder = "output",
+        description_type = "few-shots",
+        description_length = "long"
+    )
