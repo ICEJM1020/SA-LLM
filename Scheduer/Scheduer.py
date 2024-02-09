@@ -196,10 +196,12 @@ class Scheduer:
 
 
     def _run_schedule(self):
+        self.save_info()
         
         ## decompose the first event
         self.short_memory.cur_decompose = self._decompose_task().dump_list()
         while True:
+            print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event_str}-{self.short_memory.cur_activity} ")
             self._recognize_activity()
 
             self.save_activity()
