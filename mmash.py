@@ -6,6 +6,7 @@ Date: 2024-02-04
 
 import os
 import json
+from datetime import datetime
 
 import pandas as pd
 
@@ -178,10 +179,20 @@ def run_mmasch(
         ## start schedule
         ############
         agent.plan(
-            days=1,
-            start_time="07:00",
-            end_time="10:00"
-        )
+                days=1,
+                start_time="07:00",
+                end_time="10:00",
+                base_date = datetime.strptime("02-01-2024", '%m-%d-%Y')
+            )
+        # try:
+        #     agent.plan(
+        #         days=1,
+        #         start_time="07:00",
+        #         end_time="10:00",
+        #         base_date = datetime.strptime("02-01-2024", '%m-%d-%Y')
+        #     )
+        # except:
+        #     print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
 
         agent.save_info()
         

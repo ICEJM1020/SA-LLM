@@ -44,6 +44,8 @@ class Scheduer:
                 self._decompose_prompts = json.load(fp=f)
             with open("Prompts/prompt_utils.json", "r") as f:
                 self._utils_prompts = json.load(fp=f)
+            with open("Prompts/prompt_activity.json", "r") as f:
+                self._activity_prompts = json.load(fp=f)
         except:
             raise Exception("No schedule prompts file")
 
@@ -79,7 +81,7 @@ class Scheduer:
         self._out_folder = out_folder
         self._out_activity_file = os.path.join(out_folder, "activity.csv")
         with open(self._out_activity_file, "w") as f:
-            f.write("time, activity, event, feature_summary\n")
+            f.write("time, activity, event, planning_activity\n")
         self._retry_times = retry_times
 
 
@@ -88,7 +90,8 @@ class Scheduer:
             self, 
             days:int=1, 
             start_time:str="00:00", 
-            end_time:str="23:59"
+            end_time:str="23:59",
+            base_date:datetime=datetime.strptime("02-01-2024", '%m-%d-%Y')
             ):
         try:
             start_time_dt = datetime.strptime(start_time, "%H:%M")
@@ -96,10 +99,11 @@ class Scheduer:
         except:
             print(f"start_time format error {start_time} (should be HH:MM). Set to 00:00")
 
-        self.short_memory.cur_date = datetime.strptime("02-01-2024", '%m-%d-%Y')
+        self.short_memory.cur_date = base_date
+        self.long_memory.base_date = base_date
         self.short_memory.cur_time = start_time
         ## create end_time to end the simulation in that time
-        self.end_time = datetime.strptime("02-01-2024 00:00", '%m-%d-%Y %H:%M') + timedelta(days=days, hours=int(end_time.split(":")[0]), minutes=int(end_time.split(":")[1]))
+        self.end_time = base_date + timedelta(days=days, hours=int(end_time.split(":")[0]), minutes=int(end_time.split(":")[1]))
         for idx in range(days):
             
             _schedule = self._create_range_schedule(
@@ -150,8 +154,8 @@ class Scheduer:
                 })
             for event_entry in entry["schedule"]:
                 schedule_examples[idx]["schedule"].append(
-                        # ScheduleEntry.model_validate(event_entry).model_dump_json().replace("{", "{{").replace("}", "}}")
-                        json.dumps(event_entry).replace("{", "{{").replace("}", "}}")
+                        ScheduleEntry.model_validate(event_entry).model_dump_json().replace("{", "{{").replace("}", "}}")
+                        # json.dumps(event_entry).replace("{", "{{").replace("}", "}}")
                     )
         example_prompt = PromptTemplate(
             input_variables=["description", "start_time", "schedule"],
@@ -196,32 +200,44 @@ class Scheduer:
         self.save_info()
         
         ## decompose the first event
-        self.short_memory.cur_decompose = self._decompose_task().dump_list()
+        self._decompose()
         while True:
-            print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event['event']}-{self.short_memory.cur_activity} ")
-            self._recognize_activity()
+
+            reg_success, reg_activity = self._recognize_activity()
+            if reg_success:
+                self.short_memory.cur_activity = reg_activity
+            else:
+                self.short_memory.old_planning_activity = self.short_memory.planning_activity
+                self._re_decompose()
+                self.short_memory.cur_activity = self.short_memory.planning_activity
 
             self.save_activity()
+            print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event['event']}-{self.short_memory.cur_activity} ")
+
             ###############
             ## Update time and check end
             ###############
             self.short_memory.cur_time = self.short_memory.cur_time_dt + timedelta(minutes=1)
             if self.short_memory.cur_time_dt == datetime.strptime("00:00", "%H:%M"):
                 self.short_memory.cur_date = self.short_memory.cur_date_dt + timedelta(days=1)
-            # if self.short_memory.date_time_dt == self.end_time:
-            #     break
 
             if self.short_memory.check_new_event():
-                self.short_memory.cur_decompose = self._decompose_task().dump_list()
+                self._decompose()
 
             if self.short_memory.check_end_schedule():
                 return -1
-    
+            
+    def _decompose(self):
+        self.short_memory.cur_activity_set = self._generate_activity()
+        self.short_memory.cur_decompose = self._decompose_task().dump_list()
 
-    def _decompose_task(self) -> Decompose:
+    def _re_decompose(self):
+        self.short_memory.cur_decompose = self._decompose_task(re_decompose=True).dump_list()
+
+    def _decompose_task(self, re_decompose=False) -> Decompose:
         for try_idx in range(self._retry_times):
             try:
-                _decompose = self._decompose_task_chat()
+                _decompose = self._decompose_task_chat(re_decompose)
             except:
                 if try_idx + 1 == self._retry_times:
                     raise Exception(f"Event decompose failed {self.short_memory.cur_event_str} {self._retry_times} times")
@@ -231,7 +247,7 @@ class Scheduer:
                 return _decompose
 
 
-    def _decompose_task_chat(self, llm_temperature=1.0):
+    def _decompose_task_chat(self, re_decompose, llm_temperature=1.0):
         ########
         ## Generate decompose examples
         ########self.activities_by_labels
@@ -245,8 +261,8 @@ class Scheduer:
                 })
             for event_entry in entry["decompose"]:
                 decompose_examples[idx]["decompose"].append(
-                        # DecomposeEntry.model_validate(event_entry).model_dump_json().replace("{", "{{").replace("}", "}}")
-                        json.dumps(event_entry).replace("{", "{{").replace("}", "}}")
+                        DecomposeEntry.model_validate(event_entry).model_dump_json().replace("{", "{{").replace("}", "}}")
+                        # json.dumps(event_entry).replace("{", "{{").replace("}", "}}")
                     )
         example_prompt = PromptTemplate(
             input_variables=["event", "cur_activity", "options", "decompose"],
@@ -257,11 +273,11 @@ class Scheduer:
         ## event decompose few-shots examples
         #######
         decompose_parser = PydanticOutputParser(pydantic_object=Decompose)
-
+        
         prompt = FewShotPromptTemplate(
             examples=decompose_examples,
             example_prompt=example_prompt,
-            prefix=self._decompose_prompts["prefix"],
+            prefix=self._decompose_prompts["re_prefix"] if re_decompose else self._decompose_prompts["prefix"],
             suffix=self._decompose_prompts["suffix"],
             input_variables=['description', 'cur_activity', 'cur_event', 'last_event', 'next_event', 'activity_option'],
             partial_variables={"format_instructions": decompose_parser.get_format_instructions()},
@@ -272,19 +288,19 @@ class Scheduer:
                     api_key=CONFIG["openai"]["api_key"],
                     organization=CONFIG["openai"]["organization"],
                     model_name='gpt-3.5-turbo-16k',
-                    temperature=llm_temperature,
-                    max_retries=5
+                    temperature=llm_temperature
                 ),
                 prompt=prompt
             )
         
+
         results = chain.invoke(input={
             'description':self.long_memory.description,
+            'cur_time':self.short_memory.cur_time,
             'cur_activity':self.short_memory.cur_activity,
             'cur_event':self.short_memory.cur_event_str,
-            'last_event':self.short_memory.last_event,
-            'next_event':self.short_memory.next_event,
-            'activity_option': label_list_to_str(self._generate_activity()) if self.activities_by_labels else label_list_to_str(self.labels)
+            'past_activity_summary':self._summary_activity(),
+            'activity_option': label_list_to_str(self.short_memory.cur_activity_set) if self.activities_by_labels else label_list_to_str(self.labels),
         })
 
         return decompose_parser.parse(results['text'])
@@ -318,17 +334,53 @@ class Scheduer:
                 api_key=CONFIG["openai"]["api_key"],
                 organization=CONFIG["openai"]["organization"],
                 model_name='gpt-3.5-turbo',
-                temperature=1.2
+                temperature=1.5
             )
         results = model.invoke(request)
 
         return activity_list_parser.parse(results.content).activity
 
 
-    def _recognize_activity(self):
-        activity = self.short_memory.planning_activity
+    def _summary_activity(self):
+        return ""
 
-        self.short_memory.cur_activity = activity
+
+    def _recognize_activity(self):
+        for try_idx in range(self._retry_times):
+            try:
+                reg_res = self._recognize_activity_chat()
+            except:
+                if try_idx + 1 == self._retry_times:
+                    raise Exception(f"Recognize activity failed {self.short_memory.cur_event_str} {self._retry_times} times")
+                else:
+                    continue
+            else:
+                return reg_res
+            
+    
+    def _recognize_activity_chat(self):
+        
+        human_prompt = HumanMessagePromptTemplate.from_template(self._activity_prompts["prompt"])
+        chat_prompt = ChatPromptTemplate.from_messages([human_prompt])
+        
+        request = chat_prompt.format_prompt(
+            description=self.long_memory.description,
+            cur_time=self.short_memory.cur_time,
+            past_activity_summary=self._summary_activity(),
+            observation=self.long_memory.summary_sensor_data(cur_time=self.short_memory.cur_time_dt, cur_date=self.short_memory.cur_date_dt),
+            cur_activity=self.short_memory.planning_activity,
+            options=label_list_to_str(self.short_memory.cur_activity_set)
+        ).to_messages()
+
+        model = ChatOpenAI(
+                api_key=CONFIG["openai"]["api_key"],
+                organization=CONFIG["openai"]["organization"],
+                model_name='gpt-3.5-turbo',
+                temperature=0.5
+            )
+        results = model.invoke(request)
+
+        return parse_reg_activity(results.content)
 
 
     def save_info(self):

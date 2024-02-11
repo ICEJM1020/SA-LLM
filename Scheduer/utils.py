@@ -3,9 +3,9 @@ Description:
 Author: Xucheng(Timber) Zhang
 Date: 2024-02-06
 """ 
+import re
 
-# from pydantic import BaseModel, Field
-from pydantic.v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 
 class ScheduleEntry(BaseModel):
     start_time: str = Field(description='Start time of an scheduel event in the format of MM-DD-YYYY HH:MM')
@@ -62,3 +62,16 @@ def label_list_to_str(labels:list):
         res += label
         res += "; "
     return res
+
+def parse_reg_activity(content):
+    try:
+        answer = re.findall(r"^\[*Answer.*", content, re.MULTILINE)[0]
+        matches = re.findall(r'\[([^\]]+)\]', answer)
+        if re.search(r'\b(Yes)\b', matches[0]):
+            return True, matches[1]
+        elif re.search(r'\b(No)\b', matches[0]):
+            return False, matches[1]
+        else:
+            raise Exception(f"Parse recognition answer error\n{content}")
+    except:
+        raise Exception(f"Parse recognition answer error\n{content}")

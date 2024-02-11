@@ -52,6 +52,9 @@ class ShortMemory:
         self._cur_decompose_index = 0
 
         self._cur_activity = "Sleeping"
+        self._activity_set = []
+
+        self._old_planning_activity = ""
 
         self.memory_cache = RecordsQueue(cache_length)
 
@@ -127,7 +130,6 @@ class ShortMemory:
     
     @cur_decompose.setter
     def cur_decompose(self, decompose):
-        print(decompose)
         self._cur_decompose = decompose
         self._cur_decompose_index = 0
 
@@ -142,8 +144,7 @@ class ShortMemory:
             "time" : self._cur_time,
             "schedule_event" : self._cur_event["event"],
             "activity" : activity,
-            ## TODO
-            "feature_summary" : ""
+            "planning_activity" : self._old_planning_activity
         })
 
     @property
@@ -174,10 +175,28 @@ class ShortMemory:
             
             return self._cur_decompose[self._cur_decompose_index]['activity']
         
+    @property
+    def cur_activity_set(self):
+        return self._activity_set
+    
+    @cur_activity_set.setter
+    def cur_activity_set(self, activity_set):
+        self._activity_set = activity_set
+
+    @property
+    def old_planning_activity(self):
+        activity = self._old_planning_activity
+        self._old_planning_activity = ""
+        return activity
+    
+    @old_planning_activity.setter
+    def old_planning_activity(self, activity):
+        self._planning_activity = activity
+
 
     def csv_record(self):
         entry = self.memory_cache.get_current()
-        return f"{entry['time']},{entry['schedule_event']},{entry['activity']},{entry['feature_summary']}\n"
+        return f"{entry['time']},{entry['activity']},{entry['schedule_event']},{entry['planning_activity']}\n"
 
 
     def check_new_event(self):
