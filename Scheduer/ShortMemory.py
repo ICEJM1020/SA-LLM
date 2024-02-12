@@ -48,13 +48,15 @@ class ShortMemory:
         self._cur_event_index = 0
         self._max_event = 25
 
+        self._origin_decompose = []
+        self._origin_decompose_index = 0
         self._cur_decompose = []
         self._cur_decompose_index = 0
 
         self._cur_activity = "Sleeping"
         self._activity_set = []
 
-        self._old_planning_activity = ""
+        self._sensor_summary = ""
 
         self.memory_cache = RecordsQueue(cache_length)
 
@@ -141,10 +143,10 @@ class ShortMemory:
     def cur_activity(self, activity):
         self._cur_activity = activity
         self.memory_cache.push({
-            "time" : self._cur_time,
+            "time" : self.date_time,
             "schedule_event" : self._cur_event["event"],
             "activity" : activity,
-            "planning_activity" : self._old_planning_activity
+            "sensor_summary" : self._sensor_summary
         })
 
     @property
@@ -184,19 +186,39 @@ class ShortMemory:
         self._activity_set = activity_set
 
     @property
-    def old_planning_activity(self):
-        activity = self._old_planning_activity
-        self._old_planning_activity = ""
-        return activity
+    def origin_decompose(self):
+        return self._origin_decompose
     
-    @old_planning_activity.setter
-    def old_planning_activity(self, activity):
-        self._planning_activity = activity
+    @origin_decompose.setter
+    def origin_decompose(self, decompose):
+        self._origin_decompose = decompose
+        self._origin_decompose_index = 0
+
+    @property
+    def old_planning_activity(self):
+        _decompose_entry = self._origin_decompose[self._origin_decompose_index]
+        start_time = datetime.strptime(_decompose_entry["start_time"], "%m-%d-%Y %H:%M")
+        end_time = datetime.strptime(_decompose_entry["end_time"], "%m-%d-%Y %H:%M")
+
+        if start_time <= self.date_time_dt < end_time:
+            return _decompose_entry['activity']
+        else:
+            if not self._origin_decompose_index == len(self._origin_decompose) - 1:
+                self._origin_decompose_index += 1
+            return self._origin_decompose[self._origin_decompose_index]['activity']
+
+    @property
+    def sensor_summary(self):
+        return self._sensor_summary
+    
+    @sensor_summary.setter
+    def sensor_summary(self, summary):
+        self._sensor_summary = summary
 
 
     def csv_record(self):
         entry = self.memory_cache.get_current()
-        return f"{entry['time']},{entry['activity']},{entry['schedule_event']},{entry['planning_activity']}\n"
+        return f"{entry['time']},{entry['activity']},{self.old_planning_activity},{entry['schedule_event']},{entry['sensor_summary']}\n"
 
 
     def check_new_event(self):
@@ -212,6 +234,10 @@ class ShortMemory:
 
     def check_end_schedule(self):
         return self._cur_event_index == self._max_event
+    
+
+    def fetch_records(self, num_items):
+        return self.memory_cache.fetch(num_items)
         
     
 

@@ -4,6 +4,7 @@ Author: Xucheng(Timber) Zhang
 Date: 2024-02-06
 """ 
 import re
+import json
 
 from pydantic import BaseModel, Field
 
@@ -65,12 +66,19 @@ def label_list_to_str(labels:list):
 
 def parse_reg_activity(content):
     try:
-        answer = re.findall(r"^\[*Answer.*", content, re.MULTILINE)[0]
-        matches = re.findall(r'\[([^\]]+)\]', answer)
-        if re.search(r'\b(Yes)\b', matches[0]):
-            return True, matches[1]
-        elif re.search(r'\b(No)\b', matches[0]):
-            return False, matches[1]
+        match = re.search(
+                r"\{.*\}", content.strip(), re.MULTILINE | re.IGNORECASE | re.DOTALL
+            )
+        json_str = ""
+        if match:
+            json_str = match.group()
+        json_object = json.loads(json_str, strict=False)
+        
+        answer = json_object["answer"] 
+        if re.search(r'\b(Yes)\b', answer):
+            return True, json_object["activity"], json_object["sensor_summary"]
+        elif re.search(r'\b(No)\b', answer):
+            return False, json_object["activity"], json_object["sensor_summary"]
         else:
             raise Exception(f"Parse recognition answer error\n{content}")
     except:

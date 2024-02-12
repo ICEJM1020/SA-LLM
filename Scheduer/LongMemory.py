@@ -47,7 +47,7 @@ class MMASH_LongMemory(LongMemory):
 
         self._b2b = pd.read_csv(os.path.join(user_folder, CONFIG['MMASH_files']['beat2beat']), index_col=0)
         self._b2b.columns  = [
-                "Time in seconds between two consecutive heart beats.",
+                "Inter-Beat Interval in seconds",
                 "day",
                 "time"
             ]
@@ -56,15 +56,15 @@ class MMASH_LongMemory(LongMemory):
         
         self._sensory = pd.read_csv(os.path.join(user_folder, CONFIG['MMASH_files']['sensory']), index_col=0)
         self._sensory.columns  = [
-                "Acceleration data of the X-axis expressed in Newton-meter",
-                "Acceleration data of the Y-axis expressed in Newton-meter",
-                "Acceleration data of the Z-axis expressed in Newton-meter",
+                "Newton-meter Acceleration data of the X-axis",
+                "Newton-meter Acceleration data of the Y-axis",
+                "Newton-meter Acceleration data of the Z-axis",
                 "Steps",
                 "Heart Rate",
                 "Inclinometer",
-                "Inclinometer Standing",
-                "Inclinometer Sitting",
-                "Inclinometer Lying",
+                "Standing",
+                "Sitting",
+                "Lying",
                 "Vector Magnitude",
                 "day",
                 "time"
@@ -78,33 +78,36 @@ class MMASH_LongMemory(LongMemory):
         observation = ""
 
         temp_sensor = self._sensory[(self._sensory["day"]==days) & (self._sensory["hour"]==cur_time.hour) & (self._sensory["minute"]==cur_time.minute)]
-        describe = temp_sensor.describe()
-        for fea in [
-            "Acceleration data of the X-axis expressed in Newton-meter",
-            "Acceleration data of the Y-axis expressed in Newton-meter",
-            "Acceleration data of the Z-axis expressed in Newton-meter",
-            "Heart Rate","Vector Magnitude"]:
+        if not temp_sensor.shape[0]==0:
+            describe = temp_sensor.describe()
+            for fea in [
+                "Newton-meter Acceleration data of the X-axis",
+                "Newton-meter Acceleration data of the Y-axis",
+                "Newton-meter Acceleration data of the Z-axis",
+                "Heart Rate","Vector Magnitude"]:
 
-            observation += "During this minute, sensors have recorded {} for {:d} pieces. ".format(fea, temp_sensor.shape[0])
-            observation += "The mean value is {:.2f} with standard deviation {:.2f}. ".format(describe[fea]['mean'], describe[fea]['std'])
-            observation += "The minimum value is {:.2f}, and maximum value is {:.2f}. ".format(describe[fea]['min'], describe[fea]['max'])
-            observation += "Medium value is {:.2f}.\n".format(describe[fea]['50%'])
+                observation += "During this minute, sensors have recorded {} for {:d} pieces. ".format(fea, temp_sensor.shape[0])
+                observation += "The mean value is {:.2f} with standard deviation {:.2f}. ".format(describe[fea]['mean'], describe[fea]['std'])
+                observation += "The minimum value is {:.2f}, and maximum value is {:.2f}. ".format(describe[fea]['min'], describe[fea]['max'])
+                observation += "Medium value is {:.2f}.\n".format(describe[fea]['50%'])
 
         temp_b2b = self._b2b[(self._b2b["day"]==days) & (self._b2b["hour"]==cur_time.hour) & (self._b2b["minute"]==cur_time.minute)]
-        describe = temp_b2b.describe()
-        for fea in ["Time in seconds between two consecutive heart beats."]:
-            observation += "During this minute, sensors have recorded {} for {:d} pieces. ".format(fea, temp_b2b.shape[0])
-            observation += "The mean value is {:.2f} with standard deviation {:.2f}. ".format(describe[fea]['mean'], describe[fea]['std'])
-            observation += "The minimum value is {:.2f}, and maximum value is {:.2f}. ".format(describe[fea]['min'], describe[fea]['max'])
-            observation += "Medium value is {:.2f}.\n".format(describe[fea]['50%'])
+        if not temp_b2b.shape[0]==0:
+            describe = temp_b2b.describe()
+            for fea in ["Inter-Beat Interval in seconds"]:
+                observation += "During this minute, sensors have recorded {} for {:d} pieces. ".format(fea, temp_b2b.shape[0])
+                observation += "The mean value is {:.2f} with standard deviation {:.2f}. ".format(describe[fea]['mean'], describe[fea]['std'])
+                observation += "The minimum value is {:.2f}, and maximum value is {:.2f}. ".format(describe[fea]['min'], describe[fea]['max'])
+                observation += "Medium value is {:.2f}.\n".format(describe[fea]['50%'])
 
-        observation += f"Totally steps are {temp_sensor['Steps'].sum()}\n"
-        if not temp_sensor['Inclinometer'].sum() == temp_sensor.shape[0]:
-            column_sums = temp_sensor[["Standing","Sitting","Lying"]].sum()
-            column_with_max_sum = column_sums.idxmax()
-            observation += f"According to the inclinometer, the current body posture is {column_with_max_sum}.\n"
+        if not temp_sensor.shape[0]==0:
+            observation += f"Totally steps are {temp_sensor['Steps'].sum()}\n"
+            if not temp_sensor['Inclinometer'].sum() == temp_sensor.shape[0]:
+                column_sums = temp_sensor[["Standing","Sitting","Lying"]].sum()
+                column_with_max_sum = column_sums.idxmax()
+                observation += f"According to the inclinometer, the current body posture is {column_with_max_sum}.\n"
 
-        return observation
+        return observation if observation else "No Records."
 
 
 

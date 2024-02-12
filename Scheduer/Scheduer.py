@@ -77,13 +77,12 @@ class Scheduer:
         # utils
         ########
         self._output_cache = ""
-        self._output_cache_length = 1000
+        self._output_cache_length = 500
         self._out_folder = out_folder
         self._out_activity_file = os.path.join(out_folder, "activity.csv")
         with open(self._out_activity_file, "w") as f:
-            f.write("time, activity, event, planning_activity\n")
+            f.write("time, activity, planning_activity, event, sensor_summary\n")
         self._retry_times = retry_times
-
 
 
     def plan(
@@ -111,14 +110,14 @@ class Scheduer:
                 start_time=self.short_memory.cur_time
             )
             self.short_memory.schedule =_schedule.dump_dict()
-                
+            if CONFIG["debug"]: print(self.short_memory.schedule)
 
             self._run_schedule()
             self.save_info()
     
 
     #### re-try wrapper
-    def _create_range_schedule(self,start_date,start_time):
+    def _create_range_schedule(self,start_date,start_time) -> Schedule:
         for try_idx in range(self._retry_times):
             try:
                 _schedule = self._create_range_schedule_chat(
@@ -202,17 +201,21 @@ class Scheduer:
         ## decompose the first event
         self._decompose()
         while True:
-
-            reg_success, reg_activity = self._recognize_activity()
+            
+            ## Recognize if the planning activity is reasonable
+            reg_success, reg_activity, sensor_summary = self._recognize_activity()
+            self.short_memory.sensor_summary = sensor_summary
+            ## If success, record planning activity to short memory
             if reg_success:
-                self.short_memory.cur_activity = reg_activity
-            else:
-                self.short_memory.old_planning_activity = self.short_memory.planning_activity
-                self._re_decompose()
                 self.short_memory.cur_activity = self.short_memory.planning_activity
+            ## If not success, record recognized activity to short memory, then re-decompose this event
+            else:
+                self.short_memory.cur_activity = reg_activity
+                self._re_decompose()
 
+            ## save to local file
             self.save_activity()
-            print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event['event']}-{self.short_memory.cur_activity} ")
+            if CONFIG["debug"]: print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event['event']}-{self.short_memory.cur_activity} ")
 
             ###############
             ## Update time and check end
@@ -229,10 +232,14 @@ class Scheduer:
             
     def _decompose(self):
         self.short_memory.cur_activity_set = self._generate_activity()
-        self.short_memory.cur_decompose = self._decompose_task().dump_list()
+        decompose = self._decompose_task().dump_list()
+        self.short_memory.cur_decompose = decompose
+        self.short_memory.origin_decompose = decompose
+        if CONFIG["debug"]: print(decompose)
 
     def _re_decompose(self):
         self.short_memory.cur_decompose = self._decompose_task(re_decompose=True).dump_list()
+        if CONFIG["debug"]: print(self.short_memory.cur_decompose)
 
     def _decompose_task(self, re_decompose=False) -> Decompose:
         for try_idx in range(self._retry_times):
@@ -342,7 +349,25 @@ class Scheduer:
 
 
     def _summary_activity(self):
-        return ""
+        human_prompt = HumanMessagePromptTemplate.from_template(self._utils_prompts["activity_summary"])
+        chat_prompt = ChatPromptTemplate.from_messages([human_prompt])
+
+        records = self.short_memory.fetch_records(num_items=30)
+        records_str = ""
+        for record in records:
+            records_str += f"[{record['time']}] Event[{record['schedule_event']}] Activity[{record['activity']}] : {record['sensor_summary']}\n"
+
+        request = chat_prompt.format_prompt(records = records_str).to_messages()
+
+        model = ChatOpenAI(
+                api_key=CONFIG["openai"]["api_key"],
+                organization=CONFIG["openai"]["organization"],
+                model_name='gpt-3.5-turbo',
+                temperature=0.5
+            )
+        results = model.invoke(request)
+
+        return results.content
 
 
     def _recognize_activity(self):
@@ -351,7 +376,7 @@ class Scheduer:
                 reg_res = self._recognize_activity_chat()
             except:
                 if try_idx + 1 == self._retry_times:
-                    raise Exception(f"Recognize activity failed {self.short_memory.cur_event_str} {self._retry_times} times")
+                    return True, None, "Null"
                 else:
                     continue
             else:
