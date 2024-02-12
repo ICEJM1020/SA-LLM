@@ -238,8 +238,10 @@ class Scheduer:
         if CONFIG["debug"]: print(decompose)
 
     def _re_decompose(self):
-        self.short_memory.cur_decompose = self._decompose_task(re_decompose=True).dump_list()
-        if CONFIG["debug"]: print(self.short_memory.cur_decompose)
+        decompose = self._decompose_task(re_decompose=True).dump_list()
+        if decompose:
+            self.short_memory.cur_decompose = decompose
+        if CONFIG["debug"]: print(decompose)
 
     def _decompose_task(self, re_decompose=False) -> Decompose:
         for try_idx in range(self._retry_times):
@@ -286,7 +288,7 @@ class Scheduer:
             example_prompt=example_prompt,
             prefix=self._decompose_prompts["re_prefix"] if re_decompose else self._decompose_prompts["prefix"],
             suffix=self._decompose_prompts["suffix"],
-            input_variables=['description', 'cur_activity', 'cur_event', 'last_event', 'next_event', 'activity_option'],
+            input_variables=['description', 'past_activity_summary','cur_activity', 'cur_event', 'cur_time','activity_option'],
             partial_variables={"format_instructions": decompose_parser.get_format_instructions()},
         )
 

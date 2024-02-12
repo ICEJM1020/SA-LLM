@@ -185,6 +185,9 @@ def run_mmasch(
                 end_time="10:00",
                 base_date = datetime.strptime("02-01-2024", '%m-%d-%Y')
             )
+        except Exception as e:
+            print(e)
+            print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
         except:
             print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
 

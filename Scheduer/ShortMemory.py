@@ -121,7 +121,7 @@ class ShortMemory:
     @property
     def cur_event_str(self):
         try:
-            res = json.dumps(self._cur_event)
+            res = f"To do {self._cur_event['event']}, from {self._cur_event['start_time']} to {self._cur_event['end_time']}"
         except:
             res="Null"
         return res

@@ -1,6 +1,6 @@
 {
     "prefix" : "{description}\n\n{past_activity_summary}\n\nNow ({cur_time}), he/she is {cur_activity} and want to decompose current schedule event into several activities, {cur_event}.",
-    "re_prefix" : "{description}\n\n{past_activity_summary}. At {cur_time}, he/she has changed idea and want to do {cur_activity}. So he/she need to decompose remaining schedule event start from {cur_time}, {cur_event}.",
+    "re_prefix" : "{description}\n\n{past_activity_summary}.\n\nAt {cur_time}, he/she has changed idea and want to do {cur_activity}. So he/she need to decompose remaining schedule event start from {cur_time}, the original plad is {cur_event}.",
     "example_prompt" : "Current activity is {cur_activity}. Given these options:{options}. Here is an example of how to decompose a schedule event, {event}: {decompose}",
     "example" : [
         {
