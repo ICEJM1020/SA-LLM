@@ -218,7 +218,7 @@ class ShortMemory:
 
     def csv_record(self):
         entry = self.memory_cache.get_current()
-        return f"{entry['time']},{entry['activity']},{self.old_planning_activity},{entry['schedule_event']},{entry['sensor_summary']}\n"
+        return f"{entry['time']},\"{entry['activity']}\",\"{self.old_planning_activity}\",\"{entry['schedule_event']}\",\"{entry['sensor_summary']}\"\n"
 
 
     def check_new_event(self):

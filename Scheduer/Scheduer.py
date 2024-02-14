@@ -33,6 +33,7 @@ class Scheduer:
             activities_by_labels:bool = True,
             labels:list[str] = [],
             retry_times = 3,
+            verbose = False,
         ):
         ########
         # Memory
@@ -81,8 +82,9 @@ class Scheduer:
         self._out_folder = out_folder
         self._out_activity_file = os.path.join(out_folder, "activity.csv")
         with open(self._out_activity_file, "w") as f:
-            f.write("time, activity, planning_activity, event, sensor_summary\n")
+            f.write("time,activity,planning_activity,event,sensor_summary\n")
         self._retry_times = retry_times
+        self._verbose = verbose
 
 
     def plan(
@@ -103,7 +105,7 @@ class Scheduer:
         self.short_memory.cur_time = start_time
         ## create end_time to end the simulation in that time
         self.end_time = base_date + timedelta(days=days, hours=int(end_time.split(":")[0]), minutes=int(end_time.split(":")[1]))
-        for idx in range(days):
+        for _ in range(days):
             
             _schedule = self._create_range_schedule(
                 start_date=self.short_memory.cur_date,
@@ -112,8 +114,16 @@ class Scheduer:
             self.short_memory.schedule =_schedule.dump_dict()
             if CONFIG["debug"]: print(self.short_memory.schedule)
 
-            self._run_schedule()
+            response = self._run_schedule()
             self.save_info()
+
+            if isinstance(response, bool):
+                return True
+            elif isinstance(response, str):
+                self.short_memory.cur_date += timedelta(days=1)
+                self.short_memory.cur_time = response
+            else:
+                return False
     
 
     #### re-try wrapper
@@ -181,8 +191,9 @@ class Scheduer:
                     organization=CONFIG["openai"]["organization"],
                     model_name='gpt-3.5-turbo-16k',
                     temperature=llm_temperature,
+                    verbose=self._verbose,
                 ),
-                prompt=prompt
+                prompt=prompt,
             )
         
         results = chain.invoke(input={
@@ -228,6 +239,9 @@ class Scheduer:
                 self._decompose()
 
             if self.short_memory.check_end_schedule():
+                return self.short_memory.cur_time
+            
+            if self.short_memory.date_time_dt == self.end_time:
                 return -1
             
     def _decompose(self):
@@ -297,9 +311,10 @@ class Scheduer:
                     api_key=CONFIG["openai"]["api_key"],
                     organization=CONFIG["openai"]["organization"],
                     model_name='gpt-3.5-turbo-16k',
-                    temperature=llm_temperature
+                    temperature=llm_temperature,
+                    verbose=self._verbose,
                 ),
-                prompt=prompt
+                prompt=prompt,
             )
         
 
@@ -343,7 +358,8 @@ class Scheduer:
                 api_key=CONFIG["openai"]["api_key"],
                 organization=CONFIG["openai"]["organization"],
                 model_name='gpt-3.5-turbo',
-                temperature=1.5
+                temperature=1.5,
+                verbose=self._verbose
             )
         results = model.invoke(request)
 
@@ -365,7 +381,8 @@ class Scheduer:
                 api_key=CONFIG["openai"]["api_key"],
                 organization=CONFIG["openai"]["organization"],
                 model_name='gpt-3.5-turbo',
-                temperature=0.5
+                temperature=0.5,
+                verbose=self._verbose
             )
         results = model.invoke(request)
 
@@ -403,7 +420,8 @@ class Scheduer:
                 api_key=CONFIG["openai"]["api_key"],
                 organization=CONFIG["openai"]["organization"],
                 model_name='gpt-3.5-turbo',
-                temperature=0.5
+                temperature=0.5,
+                verbose=self._verbose
             )
         results = model.invoke(request)
 
