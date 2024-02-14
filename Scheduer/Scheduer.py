@@ -120,7 +120,7 @@ class Scheduer:
             if isinstance(response, bool):
                 return True
             elif isinstance(response, str):
-                self.short_memory.cur_date += timedelta(days=1)
+                self.short_memory.cur_date = self.short_memory.cur_date_dt + timedelta(days=1)
                 self.short_memory.cur_time = response
             else:
                 return False
@@ -202,8 +202,8 @@ class Scheduer:
             'start_time':start_time,
             "event_examples":label_list_to_str(self._schedule_prompts["event_examples"])
         })
-
-        return schedule_parser.parse(results['text'])
+        response = results['text'].replace("24:00", "23:59")
+        return schedule_parser.parse(response)
 
 
     def _run_schedule(self):
@@ -257,6 +257,7 @@ class Scheduer:
             self.short_memory.cur_decompose = decompose
         if CONFIG["debug"]: print(decompose)
 
+
     def _decompose_task(self, re_decompose=False) -> Decompose:
         for try_idx in range(self._retry_times):
             try:
@@ -268,7 +269,6 @@ class Scheduer:
                     continue
             else:
                 return _decompose
-
 
     def _decompose_task_chat(self, re_decompose, llm_temperature=1.0):
         ########
@@ -317,7 +317,6 @@ class Scheduer:
                 prompt=prompt,
             )
         
-
         results = chain.invoke(input={
             'description':self.long_memory.description,
             'cur_time':self.short_memory.cur_time,
@@ -327,8 +326,10 @@ class Scheduer:
             'activity_option': label_list_to_str(self.short_memory.cur_activity_set) if self.activities_by_labels else label_list_to_str(self.labels),
         })
 
-        return decompose_parser.parse(results['text'])
+        response = results['text'].replace("24:00", "23:59")
+        return decompose_parser.parse(response)
     
+
     def _generate_activity(self) -> list:
         for try_idx in range(self._retry_times):
             try:
@@ -400,7 +401,6 @@ class Scheduer:
                     continue
             else:
                 return reg_res
-            
     
     def _recognize_activity_chat(self):
         

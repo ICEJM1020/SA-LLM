@@ -409,8 +409,9 @@ def evaluate_mmash(
                 f.write(report)
                 f.write("\n\n")
                 f.write(json.dumps(activity_dict, indent=4))
-        except:
-            print("!!!! Failed {user} !!!!")
+        except Exception as e:
+            print(e)
+            print(f"!!!! Failed {user} !!!!")
 
         print(f"************* Evaluation End {user} *************")
 
