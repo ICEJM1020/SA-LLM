@@ -376,6 +376,8 @@ def evaluate_mmash(
     for user in users:
         print(f"************* Evaluation Start {user} *************")
         user_out_folder = os.path.join(out_folder, user)
+        if not os.path.exists(user_out_folder):
+            continue
         ############
         ## evaluate
         ############
@@ -404,8 +406,8 @@ def evaluate_mmash(
                 f.write(report)
                 f.write("\n\n")
                 f.write(json.dumps(activity_dict, indent=4))
-                f.write("\n\n============Recognization Activity============\n\n")
-                report, activity_dict = evaluate(user=user, pred_type="Recognization", pred=pred_act, true=true_act, user_out_folder=user_out_folder)
+                f.write("\n\n============Recognition Activity============\n\n")
+                report, activity_dict = evaluate(user=user, pred_type="Recognition", pred=pred_act, true=true_act, user_out_folder=user_out_folder)
                 f.write(report)
                 f.write("\n\n")
                 f.write(json.dumps(activity_dict, indent=4))

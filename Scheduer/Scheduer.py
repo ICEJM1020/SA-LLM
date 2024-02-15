@@ -105,7 +105,7 @@ class Scheduer:
         self.short_memory.cur_time = start_time
         ## create end_time to end the simulation in that time
         self.end_time = base_date + timedelta(days=days, hours=int(end_time.split(":")[0]), minutes=int(end_time.split(":")[1]))
-        for _ in range(days):
+        for _ in range(days + 1):
             
             _schedule = self._create_range_schedule(
                 start_date=self.short_memory.cur_date,
