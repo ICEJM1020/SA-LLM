@@ -262,6 +262,7 @@ class Scheduer:
         for try_idx in range(self._retry_times):
             try:
                 _decompose = self._decompose_task_chat(re_decompose)
+                assert len(_decompose.decompose) > 0
             except:
                 if try_idx + 1 == self._retry_times:
                     raise Exception(f"Event decompose failed {self.short_memory.cur_event_str} {self._retry_times} times")

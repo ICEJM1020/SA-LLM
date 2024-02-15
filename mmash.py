@@ -256,22 +256,28 @@ def run_mmasch(
         ############
         ## start schedule
         ############
-        try:
-            agent.plan(
+        agent.plan(
                 days=days,
                 start_time=start_time,
                 end_time=end_time,
                 base_date=datetime.strptime(base_date, '%m-%d-%Y')
             )
-        except Exception as e:
-            print(e)
-            print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
-        except:
-            print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
-        else:
-            print("****************************")
-            print(f"** End {user}")
-            print("****************************")
+        # try:
+        #     agent.plan(
+        #         days=days,
+        #         start_time=start_time,
+        #         end_time=end_time,
+        #         base_date=datetime.strptime(base_date, '%m-%d-%Y')
+        #     )
+        # except Exception as e:
+        #     print(e)
+        #     print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
+        # except:
+        #     print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
+        # else:
+        #     print("****************************")
+        #     print(f"** End {user}")
+        #     print("****************************")
 
 
 def draw_prediction(user, pred_type, pred, true, user_out_folder):
@@ -349,7 +355,7 @@ def evaluate(user, pred_type, pred, true, user_out_folder):
     ## use intersection of no-nan data in pred and true to evaluate
     indicse = true[true.notna()].index
     indicse = list(set(indicse) & set(pred.index))
-    if len(indicse)==0: return "No intersection"
+    if len(indicse)==0: return "No intersection", activity_dict
 
     y_true = true.loc[indicse].astype(np.float16).astype(np.int8)
     y_pred = pred.loc[indicse].astype(np.float16).astype(np.int8)
@@ -374,10 +380,10 @@ def evaluate_mmash(
     users, _ = fetch_user_folder(user_index=user_index)
 
     for user in users:
-        print(f"************* Evaluation Start {user} *************")
         user_out_folder = os.path.join(out_folder, user)
         if not os.path.exists(user_out_folder):
             continue
+        print(f"************* Evaluation Start {user} *************")
         ############
         ## evaluate
         ############
@@ -399,21 +405,21 @@ def evaluate_mmash(
         true = true.replace("Null", np.nan)
         true_act = true['activity'].astype(np.float16)
 
-        try:
-            with open(os.path.join(user_out_folder, "eva.txt"), "w") as f:
-                f.write("\n\n============Planning Activity============\n\n")
-                report, activity_dict = evaluate(user=user, pred_type="Planning", pred=pred_plan, true=true_act, user_out_folder=user_out_folder)
-                f.write(report)
-                f.write("\n\n")
-                f.write(json.dumps(activity_dict, indent=4))
-                f.write("\n\n============Recognition Activity============\n\n")
-                report, activity_dict = evaluate(user=user, pred_type="Recognition", pred=pred_act, true=true_act, user_out_folder=user_out_folder)
-                f.write(report)
-                f.write("\n\n")
-                f.write(json.dumps(activity_dict, indent=4))
-        except Exception as e:
-            print(e)
-            print(f"!!!! Failed {user} !!!!")
+        # try:
+        with open(os.path.join(user_out_folder, "eva.txt"), "w") as f:
+            f.write("\n\n============Planning Activity============\n\n")
+            report, activity_dict = evaluate(user=user, pred_type="Planning", pred=pred_plan, true=true_act, user_out_folder=user_out_folder)
+            f.write(report)
+            f.write("\n\n")
+            f.write(json.dumps(activity_dict, indent=4))
+            f.write("\n\n============Recognition Activity============\n\n")
+            report, activity_dict = evaluate(user=user, pred_type="Recognition", pred=pred_act, true=true_act, user_out_folder=user_out_folder)
+            f.write(report)
+            f.write("\n\n")
+            f.write(json.dumps(activity_dict, indent=4))
+        # except Exception as e:
+        #     print(e)
+        #     print(f"!!!! Failed {user} !!!!")
 
         print(f"************* Evaluation End {user} *************")
 
