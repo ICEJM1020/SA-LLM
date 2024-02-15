@@ -117,13 +117,8 @@ class Scheduer:
             response = self._run_schedule()
             self.save_info()
 
-            if isinstance(response, bool):
+            if response:
                 return True
-            elif isinstance(response, str):
-                self.short_memory.cur_date = self.short_memory.cur_date_dt + timedelta(days=1)
-                self.short_memory.cur_time = response
-            else:
-                return False
     
 
     #### re-try wrapper
@@ -239,10 +234,10 @@ class Scheduer:
                 self._decompose()
 
             if self.short_memory.check_end_schedule():
-                return self.short_memory.cur_time
+                return False
             
-            if self.short_memory.date_time_dt == self.end_time:
-                return -1
+            if self.short_memory.date_time_dt >= self.end_time:
+                return True
             
     def _decompose(self):
         self.short_memory.cur_activity_set = self._generate_activity()
