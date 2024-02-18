@@ -14,7 +14,6 @@ from langchain.chains import LLMChain
 from langchain.prompts.chat import ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain.prompts import PromptTemplate, FewShotPromptTemplate
 from langchain_openai import ChatOpenAI
-from openai import OpenAI
 
 sys.path.append(os.path.abspath('./'))
 from config import CONFIG
@@ -129,6 +128,7 @@ class Scheduer:
                     start_date=start_date,
                     start_time=start_time,
                 )
+                assert len(_schedule.schedule) > 0
             except:
                 if try_idx + 1 == self._retry_times:
                     raise Exception(f"Event schedule generation failed {self._retry_times} times")
@@ -196,7 +196,7 @@ class Scheduer:
             'start_date':start_date,
             'start_time':start_time,
             "event_examples":label_list_to_str(self._schedule_prompts["event_examples"])
-        })
+        }, config={"callbacks": [CustomHandler(verbose=CONFIG["debug"])]})
         response = results['text'].replace("24:00", "23:59")
         return schedule_parser.parse(response)
 
@@ -221,7 +221,7 @@ class Scheduer:
 
             ## save to local file
             self.save_activity()
-            if CONFIG["debug"]: print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event['event']}-{self.short_memory.cur_activity} ")
+            print(f"[{self.short_memory.cur_time}] {self.short_memory.cur_event['event']}-{self.short_memory.cur_activity} ")
 
             ###############
             ## Update time and check end
@@ -298,7 +298,7 @@ class Scheduer:
             example_prompt=example_prompt,
             prefix=self._decompose_prompts["re_prefix"] if re_decompose else self._decompose_prompts["prefix"],
             suffix=self._decompose_prompts["suffix"],
-            input_variables=['description', 'past_activity_summary','cur_activity', 'cur_event', 'cur_time','activity_option'],
+            input_variables=['description', 'past_activity_summary','cur_activity', 'cur_event', 'cur_time','activity_option', 'end_time'],
             partial_variables={"format_instructions": decompose_parser.get_format_instructions()},
         )
 
@@ -316,11 +316,12 @@ class Scheduer:
         results = chain.invoke(input={
             'description':self.long_memory.description,
             'cur_time':self.short_memory.cur_time,
+            'end_time':self.short_memory.cur_event['end_time'],
             'cur_activity':self.short_memory.cur_activity,
-            'cur_event':self.short_memory.cur_event_str,
+            'cur_event':self.short_memory.cur_event['event'],
             'past_activity_summary':self._summary_activity(),
             'activity_option': label_list_to_str(self.short_memory.cur_activity_set) if self.activities_by_labels else label_list_to_str(self.labels),
-        })
+        }, config={"callbacks": [CustomHandler(verbose=CONFIG["debug"])]})
 
         response = results['text'].replace("24:00", "23:59")
         return decompose_parser.parse(response)
@@ -336,9 +337,10 @@ class Scheduer:
                 else:
                     continue
             else:
-                return _activity_list
+                if CONFIG["debug"]: print(_activity_list)
+                return _activity_list.activity
 
-    def _generate_activity_chat(self):
+    def _generate_activity_chat(self) -> ActivitySet:
         activity_list_parser = PydanticOutputParser(pydantic_object=ActivitySet)
 
         human_prompt = HumanMessagePromptTemplate.from_template(self._utils_prompts["generate_activities_list"])
@@ -355,12 +357,12 @@ class Scheduer:
                 api_key=CONFIG["openai"]["api_key"],
                 organization=CONFIG["openai"]["organization"],
                 model_name='gpt-3.5-turbo',
-                temperature=1.5,
+                temperature=1.0,
                 verbose=self._verbose
             )
-        results = model.invoke(request)
+        results = model.invoke(request, config={"callbacks": [CustomHandler(verbose=CONFIG["debug"])]})
 
-        return activity_list_parser.parse(results.content).activity
+        return activity_list_parser.parse(results.content)
 
 
     def _summary_activity(self):
@@ -381,8 +383,8 @@ class Scheduer:
                 temperature=0.5,
                 verbose=self._verbose
             )
-        results = model.invoke(request)
-
+        results = model.invoke(request, config={"callbacks": [CustomHandler(verbose=CONFIG["debug"])]})
+        if CONFIG["debug"]: print(results.content)
         return results.content
 
 
@@ -419,8 +421,8 @@ class Scheduer:
                 temperature=0.5,
                 verbose=self._verbose
             )
-        results = model.invoke(request)
-
+        results = model.invoke(request, config={"callbacks": [CustomHandler(verbose=CONFIG["debug"])]})
+        if CONFIG["debug"]: print(results.content)
         return parse_reg_activity(results.content)
 
 

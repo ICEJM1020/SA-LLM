@@ -5,8 +5,10 @@ Date: 2024-02-06
 """ 
 import re
 import json
+from typing import Dict, List, Any
 
 from pydantic import BaseModel, Field
+from langchain_core.callbacks import BaseCallbackHandler
 
 class ScheduleEntry(BaseModel):
     start_time: str = Field(description='Start time of an scheduel event in the format of MM-DD-YYYY HH:MM')
@@ -55,6 +57,23 @@ class Decompose(BaseModel):
 
 class ActivitySet(BaseModel):
     activity: list[str] = Field(description='A list of activities (a present continuous verb phrase)')
+
+
+"""
+copyright: https://github.com/langchain-ai/langchain/issues/6628#issuecomment-1906776820
+print full prompts in langchain
+"""
+class CustomHandler(BaseCallbackHandler):
+    def __init__(self, verbose, **kwargs) -> None:
+        self._verbose = verbose
+        super().__init__(**kwargs)
+
+    def on_llm_start(
+        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
+    ) -> Any:
+        formatted_prompts = "\n".join(prompts)
+        if self._verbose: print(f"Prompt:\n{formatted_prompts}")
+        # output = chain.invoke({"info": input_text}, config={"callbacks": [CustomHandler(verbose=CONFIG["debug"])]})
 
 
 def label_list_to_str(labels:list):
