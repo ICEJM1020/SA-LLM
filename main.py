@@ -21,15 +21,15 @@ if __name__ == "__main__":
     
     run_mmasch(
         schedule_type = "label",
-        user_index = 1,
+        user_index = [1,6,11,16,21],
         result_folder = "output",
         description_type = "few-shots",
         description_length = "long"
     )
 
     # evaluate_mmash(
-    #     user_index="all",
-    #     # user_index=[1,6,11,16,21],
+    #     # user_index="all",
+    #     user_index=[1,6,11,16,21],
     #     # user_index = 8,
     #     result_folder = "output",
     # )

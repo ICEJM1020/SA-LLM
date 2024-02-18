@@ -40,7 +40,7 @@ def catalog_activity_chat(query, catalogue):
             api_key=CONFIG["openai"]["api_key"],
             organization=CONFIG["openai"]["organization"],
             model_name='gpt-3.5-turbo',
-            temperature=1.0
+            temperature=0.3
         )
     results = model.invoke(request)
 

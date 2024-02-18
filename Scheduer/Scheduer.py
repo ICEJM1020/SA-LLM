@@ -32,7 +32,7 @@ class Scheduer:
             schedule_type:str = "label",
             activities_by_labels:bool = True,
             labels:list[str] = [],
-            retry_times = 3,
+            retry_times = 5,
             verbose = False,
         ):
         ########
