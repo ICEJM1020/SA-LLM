@@ -207,7 +207,7 @@ def run_mmasch(
     ## config
     ##############
     days = 1
-    start_time = "7:00"
+    start_time = "07:00"
     end_time = "10:00"
     base_date = "02-01-2024"
 

@@ -315,7 +315,7 @@ class Scheduer:
         
         results = chain.invoke(input={
             'description':self.long_memory.description,
-            'cur_time':self.short_memory.cur_time,
+            'cur_time':self.short_memory.date_time if re_decompose else self.short_memory.cur_event['start_time'],
             'end_time':self.short_memory.cur_event['end_time'],
             'cur_activity':self.short_memory.cur_activity,
             'cur_event':self.short_memory.cur_event['event'],
@@ -373,6 +373,8 @@ class Scheduer:
         records_str = ""
         for record in records:
             records_str += f"[{record['time']}] Event[{record['schedule_event']}] Activity[{record['activity']}] : {record['sensor_summary']}\n"
+        if not records_str:
+            records_str += "No Records."
 
         request = chat_prompt.format_prompt(records = records_str).to_messages()
 
