@@ -256,35 +256,34 @@ def run_mmasch(
         ############
         ## start schedule
         ############
-        agent.plan(
-                days=days,
-                start_time=start_time,
-                end_time=end_time,
-                base_date=datetime.strptime(base_date, '%m-%d-%Y')
-            )
-        # try:
-        #     agent.plan(
+        # agent.plan(
         #         days=days,
         #         start_time=start_time,
         #         end_time=end_time,
         #         base_date=datetime.strptime(base_date, '%m-%d-%Y')
         #     )
-        # except Exception as e:
-        #     print(e)
-        #     print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
-        # except:
-        #     print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
-        # else:
-        #     print("****************************")
-        #     print(f"** End {user}")
-        #     print("****************************")
+        try:
+            agent.plan(
+                days=days,
+                start_time=start_time,
+                end_time=end_time,
+                base_date=datetime.strptime(base_date, '%m-%d-%Y')
+            )
+        except Exception as e:
+            print(e)
+            print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
+        except:
+            print(f"!!!!!!!! {user} Simulation Failed !!!!!!!!")
+        else:
+            print("****************************")
+            print(f"** End {user}")
+            print("****************************")
 
 
 def draw_prediction(user, pred_type, pred, true, user_out_folder):
     fig = plt.figure(figsize=(21,7),facecolor='white',dpi=200)
     ax = plt.subplot(1,1,1)
     ylabels = [i.split(",")[0] for i in list(CONFIG["MMASH_label"].values())]
-
 
     true.index = pd.to_datetime(true.index)
     pred.index = pd.to_datetime(pred.index)
@@ -360,8 +359,17 @@ def evaluate(user, pred_type, pred, true, user_out_folder):
     y_true = true.loc[indicse].astype(np.float16).astype(np.int8)
     y_pred = pred.loc[indicse].astype(np.float16).astype(np.int8)
 
+    ## classification
     report = classification_report(y_true=y_true, y_pred=y_pred)
-    return report, activity_dict
+
+    ## similarity
+    ## levenshtein distance similarity
+    ld_simi = levenshtein_similarity(true=y_true, pred=y_pred)
+    ## cosine similarity
+    cos_simi = cosine_similarity(true=y_true, pred=y_pred)
+
+
+    return report, activity_dict, ld_simi, cos_simi
 
 
 def evaluate_mmash(
@@ -408,13 +416,18 @@ def evaluate_mmash(
         # try:
         with open(os.path.join(user_out_folder, "eva.txt"), "w") as f:
             f.write("\n\n============Planning Activity============\n\n")
-            report, activity_dict = evaluate(user=user, pred_type="Planning", pred=pred_plan, true=true_act, user_out_folder=user_out_folder)
+            report, activity_dict, ld_simi, cos_simi = evaluate(user=user, pred_type="Planning", pred=pred_plan, true=true_act, user_out_folder=user_out_folder)
             f.write(report)
             f.write("\n\n")
+            f.write("Levenshtein Distance Similarity: {:.8f}\nCosine Similarity: {:.8f}".format(ld_simi, cos_simi))
+            f.write("\n\n")
+
             f.write(json.dumps(activity_dict, indent=4))
             f.write("\n\n============Recognition Activity============\n\n")
-            report, activity_dict = evaluate(user=user, pred_type="Recognition", pred=pred_act, true=true_act, user_out_folder=user_out_folder)
+            report, activity_dict, ld_simi, cos_simi = evaluate(user=user, pred_type="Recognition", pred=pred_act, true=true_act, user_out_folder=user_out_folder)
             f.write(report)
+            f.write("\n\n")
+            f.write("Levenshtein Distance Similarity: {:.8f}\nCosine Similarity: {:.8f}".format(ld_simi, cos_simi))
             f.write("\n\n")
             f.write(json.dumps(activity_dict, indent=4))
         # except Exception as e:
@@ -422,4 +435,70 @@ def evaluate_mmash(
         #     print(f"!!!! Failed {user} !!!!")
 
         print(f"************* Evaluation End {user} *************")
+
+
+
+def mmash_baseline(
+        user_index: str | list[int] = "all",
+        result_folder: str = "output",
+    ):
+    ############
+    ## baseline in-dataset self-similarity
+    ############
+    users, _ = fetch_user_folder(user_index=user_index)
+    out_folder = os.path.join(result_folder, "mmash")
+
+    overall_ld = []
+    overall_cos = []
+    with open(os.path.join(out_folder, "baseline.txt"), "w") as f:
+        for user in users:
+            ## load user label
+            user_out_folder = os.path.join(out_folder, user)
+            if not os.path.exists(user_out_folder):
+                continue
+            
+            user_act = pd.read_csv(os.path.join(user_out_folder, "label.csv"), index_col=0)
+            user_act = user_act.replace("Null", np.nan)
+            user_act = user_act['activity'].astype(np.float16)
+            user_nonan_indices = user_act[user_act.notna()].index
+
+            user_ld = []
+            user_cos = []
+            f.write("\n===============\n")
+
+            ## compare remaining user
+            for comp_user in users:
+                if comp_user==user: continue
+
+                comp_user_out_folder = os.path.join(out_folder, comp_user)
+                if not os.path.exists(comp_user_out_folder): continue
+
+                comp_user_act = pd.read_csv(os.path.join(comp_user_out_folder, "label.csv"), index_col=0)
+                comp_user_act = comp_user_act.replace("Null", np.nan)
+                comp_user_act = comp_user_act['activity'].astype(np.float16)
+                comp_user_nonan_indices = comp_user_act[comp_user_act.notna()].index
+
+                ## use intersection of no-nan data in pred and true to evaluate
+                indicse = list(set(user_nonan_indices) & set(comp_user_nonan_indices))
+                if len(indicse)==0: continue
+
+                ld = levenshtein_similarity(user_act[indicse], comp_user_act[indicse])
+                cos = cosine_similarity(user_act[indicse], comp_user_act[indicse])
+
+                f.write("{}<=>{}: Levenshtein: {:.8f}; Cosine: {:.8f}\n".format(user, comp_user, ld, cos))
+
+                user_ld.append(ld)
+                user_cos.append(cos)
+                overall_ld.append(ld)
+                overall_cos.append(cos)
+
+            f.write("{} Overall: Levenshtein: {:.8f}(std: {:.8f}); Cosine: {:.8f}(std: {:.8f})\n".format(user, np.mean(user_ld), np.std(user_ld),  np.mean(user_cos), np.std(user_cos)))
+
+        f.write("\n===============\n")
+        f.write("Overall: Levenshtein: {:.8f}(std: {:.8f}); Cosine: {:.8f}(std: {:.8f})\n".format(np.mean(overall_ld), np.std(overall_ld),  np.mean(overall_cos), np.std(overall_cos)))
+
+
+
+
+
 
